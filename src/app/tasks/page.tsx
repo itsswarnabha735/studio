@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -165,6 +164,7 @@ const TaskPage = () => {
       }
       const newTask = await response.json();
       setTasks((prevTasks) => [...prevTasks, newTask]);
+      localStorage.setItem("tasks", JSON.stringify([...tasks, newTask]));
   
     setTaskName("");
     setSelectedAssignees([]);
@@ -207,6 +207,7 @@ const TaskPage = () => {
       setTasks((prevTasks) =>
         prevTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
       );
+      localStorage.setItem("tasks", JSON.stringify(tasks));
   
       setEditingTask(null);
       setTaskName("");
@@ -240,6 +241,7 @@ const TaskPage = () => {
       }
       setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
       setCompletedTasks(completedTasks.filter(ct => ct.taskId !== taskId));
+       localStorage.setItem("tasks", JSON.stringify(tasks));
   
       toast({
         title: "Task Deleted",
@@ -324,6 +326,7 @@ const TaskPage = () => {
       completionDate: new Date(),
     };
     setCompletedTasks([...completedTasks, newCompletedTask]);
+     localStorage.setItem("completedTasks", JSON.stringify([...completedTasks, newCompletedTask]));
     toast({
       title: "Task Completed",
       description: `Task "${task.name}" marked as completed!`,

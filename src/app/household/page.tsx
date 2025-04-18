@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -76,12 +75,15 @@ const HouseholdPage = () => {
       }
       const newHousehold = await response.json();
       setHouseholds((prev) => [...prev, newHousehold]);
+      localStorage.setItem("households", JSON.stringify([...households, newHousehold]));
+
       toast({
         title: "Household Created",
         description: `Household "${householdName}" created successfully!`,
       });
       setOpen(false);
       setHouseholdName("");
+      fetchHouseholds();
     } catch (error) {
       console.error("Could not create household:", error);
       toast({
@@ -100,6 +102,7 @@ const HouseholdPage = () => {
       name: `Household ${joinCode}`, // Placeholder name
     };
     setHouseholds([...households, newHousehold]);
+     localStorage.setItem("households", JSON.stringify([...households, newHousehold]));
     toast({
       title: "Household Joined",
       description: `Joined household with code "${joinCode}"! (This is a simulation)`,
@@ -110,6 +113,7 @@ const HouseholdPage = () => {
 
   const handleLeaveHousehold = (householdId: string) => {
     setHouseholds(households.filter((household) => household.id !== householdId));
+     localStorage.setItem("households", JSON.stringify(households.filter((household) => household.id !== householdId)));
     toast({
       title: "Household Left",
       description: "You have left the household.",
