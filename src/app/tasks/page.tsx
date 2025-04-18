@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, setHours, setMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface Task {
@@ -36,7 +36,8 @@ const TaskPage = () => {
   const [households, setHouseholds] = useState<Household[]>([]);
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
   const [householdMembers, setHouseholdMembers] = useState<string[]>([]);
-  const [date, setDate] = useState<Date | undefined>();
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [time, setTime] = useState<{ hour: number; minute: number }>({ hour: 0, minute: 0 });
 
   useEffect(() => {
     const storedUserName = localStorage.getItem("userName");
@@ -96,17 +97,23 @@ const TaskPage = () => {
       return;
     }
 
+    let deadline: Date | null = null;
+    if (date) {
+      deadline = setHours(setMinutes(date, time.minute), time.hour);
+    }
+
     const newTask: Task = {
       id: Math.random().toString(36).substring(7),
       name: taskName,
       assignees: selectedAssignees,
       householdId: selectedHouseholdId,
-      deadline: date ? new Date(date) : null,
+      deadline: deadline,
     };
     setTasks([...tasks, newTask]);
     setTaskName("");
     setSelectedAssignees([]);
     setDate(undefined);
+    setTime({ hour: 0, minute: 0 });
     toast({
       title: "Task Created",
       description: `Task "${taskName}" created successfully!`,
@@ -119,6 +126,20 @@ const TaskPage = () => {
     } else {
       setSelectedAssignees([...selectedAssignees, member]);
     }
+  };
+
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        options.push({
+          hour: h,
+          minute: m,
+          display: `${h}:${m === 0 ? '00' : m}`
+        });
+      }
+    }
+    return options;
   };
 
   if (!userName) {
@@ -214,27 +235,44 @@ const TaskPage = () => {
                   </div>
                   <div>
                     <Label>Deadline:</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
-                          )}
-                        >
-                          {date ? format(date, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={setDate}
-                          disabled={false}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !date && "text-muted-foreground"
+                            )}
+                          >
+                            {date ? format(date, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={setDate}
+                            disabled={false}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Select onValueChange={(value) => {
+                        const [hour, minute] = value.split(':').map(Number);
+                        setTime({ hour, minute });
+                      }} value={`${time.hour}:${time.minute}`}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {generateTimeOptions().map((timeOption) => (
+                            <SelectItem key={`${timeOption.hour}:${timeOption.minute}`} value={`${timeOption.hour}:${timeOption.minute}`}>
+                              {timeOption.display}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               )}
@@ -261,7 +299,7 @@ const TaskPage = () => {
                       {task.name} (Assigned to: {task.assignees.join(", ")})
                       {task.deadline && (
                         <div className="text-sm text-muted-foreground">
-                          Deadline: {format(task.deadline, "PPP")}
+                          Deadline: {format(task.deadline, "PPP h:mm a")}
                         </div>
                       )}
                     </li>
@@ -284,7 +322,7 @@ const TaskPage = () => {
                       {task.name} (Assigned to: {task.assignees.join(", ")})
                       {task.deadline && (
                         <div className="text-sm text-muted-foreground">
-                          Deadline: {format(task.deadline, "PPP")}
+                          Deadline: {format(task.deadline, "PPP h:mm a")}
                         </div>
                       )}
                     </li>
