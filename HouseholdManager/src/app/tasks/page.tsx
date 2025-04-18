@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, setHours, setMinutes } from "date-fns";
+import { format, setHours, setMinutes, intervalToDuration, formatDuration } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface Task {
@@ -19,6 +19,7 @@ interface Task {
   assignees: string[];
   householdId: string;
   deadline: Date | null;
+  createdBy: string;
 }
 
 interface Household {
@@ -33,16 +34,20 @@ const TaskPage = () => {
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
   const [householdMembers, setHouseholdMembers] = useState<string[]>([]);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState<{ hour: number; minute: number }>({ hour: 0, minute: 0 });
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   useEffect(() => {
     const storedUserName = localStorage.getItem("userName");
-    if (storedUserName) {
+    const storedUserEmail = localStorage.getItem("userEmail");
+    if (storedUserName && storedUserEmail) {
       setUserName(storedUserName);
+      setUserEmail(storedUserEmail);
     }
 
     const storedHouseholds = localStorage.getItem("households");
@@ -108,6 +113,7 @@ const TaskPage = () => {
       assignees: selectedAssignees,
       householdId: selectedHouseholdId,
       deadline: deadline,
+      createdBy: userEmail || 'unknown',
     };
     setTasks([...tasks, newTask]);
     setTaskName("");
@@ -117,6 +123,42 @@ const TaskPage = () => {
     toast({
       title: "Task Created",
       description: `Task "${taskName}" created successfully!`,
+    });
+  };
+
+  const handleUpdateTask = () => {
+    if (!editingTask) return;
+
+    const updatedTasks = tasks.map(task => {
+      if (task.id === editingTask.id) {
+        return {
+          ...task,
+          name: taskName,
+          assignees: selectedAssignees,
+          deadline: date ? setHours(setMinutes(date, time.minute), time.hour) : null,
+        };
+      }
+      return task;
+    });
+
+    setTasks(updatedTasks);
+    setEditingTask(null);
+    setTaskName("");
+    setSelectedAssignees([]);
+    setDate(undefined);
+    setTime({ hour: 0, minute: 0 });
+
+    toast({
+      title: "Task Updated",
+      description: `Task "${taskName}" updated successfully!`,
+    });
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    setTasks(tasks.filter(task => task.id !== taskId));
+    toast({
+      title: "Task Deleted",
+      description: "Task deleted successfully!",
     });
   };
 
@@ -141,6 +183,42 @@ const TaskPage = () => {
     }
     return options;
   };
+
+  const startEditing = (task: Task) => {
+    setEditingTask(task);
+    setTaskName(task.name);
+    setSelectedAssignees(task.assignees);
+    if (task.deadline) {
+      setDate(task.deadline);
+      setTime({ hour: task.deadline.getHours(), minute: task.deadline.getMinutes() });
+    } else {
+      setDate(undefined);
+      setTime({ hour: 0, minute: 0 });
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingTask(null);
+    setTaskName("");
+    setSelectedAssignees([]);
+    setDate(undefined);
+    setTime({ hour: 0, minute: 0 });
+  };
+
+  const getTimeLeftString = (deadline: Date | null): string => {
+    if (!deadline) return "No deadline";
+    const now = new Date();
+    if (deadline <= now) return "Deadline passed";
+
+    const duration = intervalToDuration({ start: now, end: deadline });
+    const formattedDuration = formatDuration(duration, {
+      format: ['years', 'months', 'days', 'hours', 'minutes'],
+      delimiter: ", ",
+    });
+
+    return `${formattedDuration} left`;
+  };
+
 
   if (!userName) {
     return (
@@ -276,9 +354,20 @@ const TaskPage = () => {
                   </div>
                 </div>
               )}
-              <Button onClick={handleAddTask} disabled={!taskName || selectedAssignees.length === 0 || !selectedHouseholdId}>
-                Add Task
-              </Button>
+              {editingTask ? (
+                <div className="flex gap-2">
+                  <Button onClick={handleUpdateTask} disabled={!taskName || selectedAssignees.length === 0 || !selectedHouseholdId}>
+                    Update Task
+                  </Button>
+                  <Button variant="secondary" onClick={cancelEditing}>
+                    Cancel Edit
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={handleAddTask} disabled={!taskName || selectedAssignees.length === 0 || !selectedHouseholdId}>
+                  Add Task
+                </Button>
+              )}
             </>
           )}
         </CardContent>
@@ -295,13 +384,32 @@ const TaskPage = () => {
               <CardContent>
                 <ul>
                   {userTasks.map((task) => (
-                    <li key={task.id} className="py-2 border-b">
-                      {task.name} (Assigned to: {task.assignees.join(", ")})
-                      {task.deadline && (
-                        <div className="text-sm text-muted-foreground">
-                          Deadline: {format(task.deadline, "PPP h:mm a")}
-                        </div>
-                      )}
+                    <li key={task.id} className="py-2 border-b flex items-center justify-between">
+                      <div>
+                        {task.name} (Assigned to: {task.assignees.join(", ")})
+                        {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                            Deadline: {format(task.deadline, "PPP h:mm a")}
+                          </div>
+                        )}
+                         {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                            Time left: {getTimeLeftString(task.deadline)}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        {task.createdBy === userEmail && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
+                              Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -318,13 +426,32 @@ const TaskPage = () => {
               <CardContent>
                 <ul>
                   {otherTasks.map((task) => (
-                    <li key={task.id} className="py-2 border-b">
-                      {task.name} (Assigned to: {task.assignees.join(", ")})
-                      {task.deadline && (
-                        <div className="text-sm text-muted-foreground">
-                          Deadline: {format(task.deadline, "PPP h:mm a")}
-                        </div>
-                      )}
+                    <li key={task.id} className="py-2 border-b flex items-center justify-between">
+                      <div>
+                        {task.name} (Assigned to: {task.assignees.join(", ")})
+                        {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                            Deadline: {format(task.deadline, "PPP h:mm a")}
+                          </div>
+                        )}
+                         {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                             Time left: {getTimeLeftString(task.deadline)}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        {task.createdBy === userEmail && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
+                              Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
