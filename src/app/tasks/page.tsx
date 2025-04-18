@@ -58,8 +58,7 @@ const TaskPage = () => {
       setUserEmail(storedUserEmail);
     }
 
-    fetchHouseholds();
-    fetchTasks();
+    Promise.all([fetchHouseholds(), fetchTasks()]).finally(() => setLoading(false));
 
     const storedCompletedTasks = localStorage.getItem("completedTasks");
     if (storedCompletedTasks) {
@@ -172,6 +171,7 @@ const TaskPage = () => {
           title: "Task Created",
           description: `Task "${taskName}" created successfully!`,
         });
+        await fetchTasks();
       } catch (error) {
         console.error("Could not create task:", error);
         toast({
@@ -224,6 +224,7 @@ const TaskPage = () => {
         title: "Task Updated",
         description: `Task "${taskName}" updated successfully!`,
       });
+       await fetchTasks();
     } catch (error) {
       console.error("Could not update task:", error);
       toast({
@@ -257,6 +258,7 @@ const TaskPage = () => {
         title: "Task Deleted",
         description: "Task deleted successfully!",
       });
+       await fetchTasks();
     } catch (error) {
       console.error("Could not delete task:", error);
       toast({
@@ -341,6 +343,7 @@ const TaskPage = () => {
       title: "Task Completed",
       description: `Task "${task.name}" marked as completed!`,
     });
+     fetchTasks();
   };
 
   if (!userName) {
