@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, setHours, setMinutes } from "date-fns";
+import { format, setHours, setMinutes, intervalToDuration, formatDuration } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface Task {
@@ -205,6 +205,20 @@ const TaskPage = () => {
     setTime({ hour: 0, minute: 0 });
   };
 
+  const getTimeLeftString = (deadline: Date | null): string => {
+    if (!deadline) return "No deadline";
+    const now = new Date();
+    if (deadline <= now) return "Deadline passed";
+
+    const duration = intervalToDuration({ start: now, end: deadline });
+    const formattedDuration = formatDuration(duration, {
+      format: ['years', 'months', 'days', 'hours', 'minutes'],
+      delimiter: ", ",
+    });
+
+    return `${formattedDuration} left`;
+  };
+
 
   if (!userName) {
     return (
@@ -378,6 +392,11 @@ const TaskPage = () => {
                             Deadline: {format(task.deadline, "PPP h:mm a")}
                           </div>
                         )}
+                         {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                            Time left: {getTimeLeftString(task.deadline)}
+                          </div>
+                        )}
                       </div>
                       <div>
                         {task.createdBy === userEmail && (
@@ -413,6 +432,11 @@ const TaskPage = () => {
                         {task.deadline && (
                           <div className="text-sm text-muted-foreground">
                             Deadline: {format(task.deadline, "PPP h:mm a")}
+                          </div>
+                        )}
+                         {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                             Time left: {getTimeLeftString(task.deadline)}
                           </div>
                         )}
                       </div>
