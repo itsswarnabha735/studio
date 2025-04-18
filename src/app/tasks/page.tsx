@@ -243,7 +243,7 @@ const TaskPage = () => {
   const markTaskCompleted = (task: Task) => {
     const newCompletedTask: CompletedTask = {
       taskId: task.id,
-      completedBy: userName,
+      completedBy: userName!,
       completionDate: new Date(),
     };
     setCompletedTasks([...completedTasks, newCompletedTask]);
@@ -274,6 +274,13 @@ const TaskPage = () => {
 
   const userTasks = tasks.filter(task => task.householdId === selectedHouseholdId && task.assignees.includes(userName || 'You'));
   const otherTasks = tasks.filter(task => task.householdId === selectedHouseholdId && !task.assignees.includes(userName || 'You'));
+
+  const completedUserTasks = userTasks.filter(task => isTaskCompleted(task.id));
+  const incompleteUserTasks = userTasks.filter(task => !isTaskCompleted(task.id));
+
+   const completedOtherTasks = otherTasks.filter(task => isTaskCompleted(task.id));
+  const incompleteOtherTasks = otherTasks.filter(task => !isTaskCompleted(task.id));
+
 
   return (
     <div className="container mx-auto py-10">
@@ -416,7 +423,17 @@ const TaskPage = () => {
               </CardHeader>
               <CardContent>
                 <ul>
-                  {userTasks.map((task) => (
+                  {[...incompleteUserTasks, ...completedUserTasks].sort((a, b) => {
+                    const aCompleted = isTaskCompleted(a.id);
+                    const bCompleted = isTaskCompleted(b.id);
+                    if (aCompleted && !bCompleted) {
+                      return 1;
+                    }
+                    if (!aCompleted && bCompleted) {
+                      return -1;
+                    }
+                    return 0;
+                  }).map((task) => (
                     <li key={task.id} className="py-2 border-b flex items-center justify-between">
                       <div>
                         {task.name} (Assigned to: {task.assignees.join(", ")})
@@ -465,7 +482,17 @@ const TaskPage = () => {
               </CardHeader>
               <CardContent>
                 <ul>
-                  {otherTasks.map((task) => (
+                 {[...incompleteOtherTasks, ...completedOtherTasks].sort((a, b) => {
+                    const aCompleted = isTaskCompleted(a.id);
+                    const bCompleted = isTaskCompleted(b.id);
+                    if (aCompleted && !bCompleted) {
+                      return 1;
+                    }
+                    if (!aCompleted && bCompleted) {
+                      return -1;
+                    }
+                    return 0;
+                  }).map((task) => (
                     <li key={task.id} className="py-2 border-b flex items-center justify-between">
                       <div>
                         {task.name} (Assigned to: {task.assignees.join(", ")})
