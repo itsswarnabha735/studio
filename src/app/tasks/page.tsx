@@ -8,12 +8,17 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Task {
   id: string;
   name: string;
   assignees: string[];
   householdId: string;
+  deadline: Date | null;
 }
 
 interface Household {
@@ -23,7 +28,7 @@ interface Household {
 
 const TaskPage = () => {
   const router = useRouter();
-    const { toast } = useToast();
+  const { toast } = useToast();
   const [taskName, setTaskName] = useState("");
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -31,6 +36,7 @@ const TaskPage = () => {
   const [households, setHouseholds] = useState<Household[]>([]);
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
   const [householdMembers, setHouseholdMembers] = useState<string[]>([]);
+  const [date, setDate] = useState<Date | undefined>();
 
   useEffect(() => {
     const storedUserName = localStorage.getItem("userName");
@@ -48,18 +54,17 @@ const TaskPage = () => {
     }
 
     const storedTasks = localStorage.getItem("tasks");
-      if (storedTasks) {
-          setTasks(JSON.parse(storedTasks));
-      }
+    if (storedTasks) {
+      setTasks(JSON.parse(storedTasks));
+    }
   }, []);
 
   useEffect(() => {
-      localStorage.setItem("tasks", JSON.stringify(tasks));
+    localStorage.setItem("tasks", JSON.stringify(tasks));
   }, [tasks]);
 
   useEffect(() => {
     if (selectedHouseholdId) {
-      // Fetch household members (dummy data, replace with actual logic)
       setHouseholdMembers([userName || 'You', "Spouse", "Child"]);
     } else {
       setHouseholdMembers([]);
@@ -75,21 +80,37 @@ const TaskPage = () => {
       return;
     }
 
-    if (taskName && selectedAssignees.length > 0) {
-      const newTask: Task = {
-        id: Math.random().toString(36).substring(7), // Unique ID
-        name: taskName,
-        assignees: selectedAssignees,
-        householdId: selectedHouseholdId,
-      };
-      setTasks([...tasks, newTask]);
-      setTaskName("");
-      setSelectedAssignees([]);
-        toast({
-            title: "Task Created",
-            description: `Task "${taskName}" created successfully!`,
-        });
+    if (!taskName) {
+      toast({
+        title: "Error",
+        description: "Please enter the task name.",
+      });
+      return;
     }
+
+    if (selectedAssignees.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one assignee.",
+      });
+      return;
+    }
+
+    const newTask: Task = {
+      id: Math.random().toString(36).substring(7),
+      name: taskName,
+      assignees: selectedAssignees,
+      householdId: selectedHouseholdId,
+      deadline: date ? new Date(date) : null,
+    };
+    setTasks([...tasks, newTask]);
+    setTaskName("");
+    setSelectedAssignees([]);
+    setDate(undefined);
+    toast({
+      title: "Task Created",
+      description: `Task "${taskName}" created successfully!`,
+    });
   };
 
   const toggleAssignee = (member: string) => {
@@ -119,9 +140,8 @@ const TaskPage = () => {
     );
   }
 
-    const userTasks = tasks.filter(task => task.householdId === selectedHouseholdId && task.assignees.includes(userName || 'You'));
-    const otherTasks = tasks.filter(task => task.householdId === selectedHouseholdId && !task.assignees.includes(userName || 'You'));
-
+  const userTasks = tasks.filter(task => task.householdId === selectedHouseholdId && task.assignees.includes(userName || 'You'));
+  const otherTasks = tasks.filter(task => task.householdId === selectedHouseholdId && !task.assignees.includes(userName || 'You'));
 
   return (
     <div className="container mx-auto py-10">
@@ -135,10 +155,10 @@ const TaskPage = () => {
         <CardContent className="grid gap-4">
           {households.length === 0 ? (
             <p>
-              You must create or join a household first. Go to the{" "}
+              You must create or join a household first. Go to the
               <Button variant="link" onClick={() => router.push("/household")}>
                 Household
-              </Button>{" "}
+              </Button>
               tab to manage households.
             </p>
           ) : (
@@ -192,6 +212,30 @@ const TaskPage = () => {
                       ))}
                     </div>
                   </div>
+                  <div>
+                    <Label>Deadline:</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                          )}
+                        >
+                          {date ? format(date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={date}
+                          onSelect={setDate}
+                          disabled={false}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               )}
               <Button onClick={handleAddTask} disabled={!taskName || selectedAssignees.length === 0 || !selectedHouseholdId}>
@@ -202,53 +246,63 @@ const TaskPage = () => {
         </CardContent>
       </Card>
 
-        {selectedHouseholdId && (
-            <>
-                {userTasks.length > 0 && (
-                    <Card className="mt-6">
-                        <CardHeader>
-                            <CardTitle>Tasks Assigned to You</CardTitle>
-                            <CardDescription>These tasks are assigned to you.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ul>
-                                {userTasks.map((task) => (
-                                    <li key={task.id} className="py-2 border-b">
-                                        {task.name} (Assigned to: {task.assignees.join(", ")})
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                )}
+      {selectedHouseholdId && (
+        <>
+          {userTasks.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Tasks Assigned to You</CardTitle>
+                <CardDescription>These tasks are assigned to you.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul>
+                  {userTasks.map((task) => (
+                    <li key={task.id} className="py-2 border-b">
+                      {task.name} (Assigned to: {task.assignees.join(", ")})
+                      {task.deadline && (
+                        <div className="text-sm text-muted-foreground">
+                          Deadline: {format(task.deadline, "PPP")}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
-                {otherTasks.length > 0 && (
-                    <Card className="mt-6">
-                        <CardHeader>
-                            <CardTitle>Tasks Assigned to Others</CardTitle>
-                            <CardDescription>These tasks are assigned to other household members.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ul>
-                                {otherTasks.map((task) => (
-                                    <li key={task.id} className="py-2 border-b">
-                                        {task.name} (Assigned to: {task.assignees.join(", ")})
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                )}
+          {otherTasks.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Tasks Assigned to Others</CardTitle>
+                <CardDescription>These tasks are assigned to other household members.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul>
+                  {otherTasks.map((task) => (
+                    <li key={task.id} className="py-2 border-b">
+                      {task.name} (Assigned to: {task.assignees.join(", ")})
+                      {task.deadline && (
+                        <div className="text-sm text-muted-foreground">
+                          Deadline: {format(task.deadline, "PPP")}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
-                {userTasks.length === 0 && otherTasks.length === 0 && (
-                    <Card className="mt-6">
-                        <CardContent>
-                            No tasks created for this household yet.
-                        </CardContent>
-                    </Card>
-                )}
-            </>
-        )}
+          {userTasks.length === 0 && otherTasks.length === 0 && (
+            <Card className="mt-6">
+              <CardContent>
+                No tasks created for this household yet.
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 };
