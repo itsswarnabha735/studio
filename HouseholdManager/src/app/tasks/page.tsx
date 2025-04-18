@@ -22,6 +22,12 @@ interface Task {
   createdBy: string;
 }
 
+interface CompletedTask {
+  taskId: string;
+  completedBy: string | null;
+  completionDate: Date;
+}
+
 interface Household {
   id: string;
   name: string;
@@ -33,6 +39,7 @@ const TaskPage = () => {
   const [taskName, setTaskName] = useState("");
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -63,11 +70,20 @@ const TaskPage = () => {
     if (storedTasks) {
       setTasks(JSON.parse(storedTasks));
     }
+
+    const storedCompletedTasks = localStorage.getItem("completedTasks");
+    if (storedCompletedTasks) {
+      setCompletedTasks(JSON.parse(storedCompletedTasks));
+    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem("tasks", JSON.stringify(tasks));
   }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem("completedTasks", JSON.stringify(completedTasks));
+  }, [completedTasks]);
 
   useEffect(() => {
     if (selectedHouseholdId) {
@@ -156,6 +172,7 @@ const TaskPage = () => {
 
   const handleDeleteTask = (taskId: string) => {
     setTasks(tasks.filter(task => task.id !== taskId));
+    setCompletedTasks(completedTasks.filter(ct => ct.taskId !== taskId));
     toast({
       title: "Task Deleted",
       description: "Task deleted successfully!",
@@ -219,6 +236,22 @@ const TaskPage = () => {
     return `${formattedDuration} left`;
   };
 
+  const isTaskCompleted = (taskId: string): boolean => {
+    return completedTasks.some(task => task.taskId === taskId && task.completedBy === userName);
+  };
+
+  const markTaskCompleted = (task: Task) => {
+    const newCompletedTask: CompletedTask = {
+      taskId: task.id,
+      completedBy: userName,
+      completionDate: new Date(),
+    };
+    setCompletedTasks([...completedTasks, newCompletedTask]);
+    toast({
+      title: "Task Completed",
+      description: `Task "${task.name}" marked as completed!`,
+    });
+  };
 
   if (!userName) {
     return (
@@ -241,6 +274,13 @@ const TaskPage = () => {
 
   const userTasks = tasks.filter(task => task.householdId === selectedHouseholdId && task.assignees.includes(userName || 'You'));
   const otherTasks = tasks.filter(task => task.householdId === selectedHouseholdId && !task.assignees.includes(userName || 'You'));
+
+  const completedUserTasks = userTasks.filter(task => isTaskCompleted(task.id));
+  const incompleteUserTasks = userTasks.filter(task => !isTaskCompleted(task.id));
+
+   const completedOtherTasks = otherTasks.filter(task => isTaskCompleted(task.id));
+  const incompleteOtherTasks = otherTasks.filter(task => !isTaskCompleted(task.id));
+
 
   return (
     <div className="container mx-auto py-10">
@@ -383,7 +423,7 @@ const TaskPage = () => {
               </CardHeader>
               <CardContent>
                 <ul>
-                  {userTasks.map((task) => (
+                  {incompleteUserTasks.map((task) => (
                     <li key={task.id} className="py-2 border-b flex items-center justify-between">
                       <div>
                         {task.name} (Assigned to: {task.assignees.join(", ")})
@@ -398,7 +438,50 @@ const TaskPage = () => {
                           </div>
                         )}
                       </div>
+                      <div className="flex gap-2">
+                        {!isTaskCompleted(task.id) ? (
+                          <Button size="sm" onClick={() => markTaskCompleted(task)}>
+                            Mark Complete
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-green-500">Completed</span>
+                        )}
+                        {task.createdBy === userEmail && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
+                              Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                   {completedUserTasks.map((task) => (
+                    <li key={task.id} className="py-2 border-b flex items-center justify-between opacity-50">
                       <div>
+                        {task.name} (Assigned to: {task.assignees.join(", ")})
+                        {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                            Deadline: {format(task.deadline, "PPP h:mm a")}
+                          </div>
+                        )}
+                         {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                            Time left: {getTimeLeftString(task.deadline)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        {isTaskCompleted(task.id) ? (
+                          <span className="text-sm text-green-500">Completed</span>
+                        ) : (
+                            <Button size="sm" onClick={() => markTaskCompleted(task)}>
+                            Mark Complete
+                          </Button>
+                        )}
                         {task.createdBy === userEmail && (
                           <>
                             <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
@@ -425,8 +508,38 @@ const TaskPage = () => {
               </CardHeader>
               <CardContent>
                 <ul>
-                  {otherTasks.map((task) => (
+                 {incompleteOtherTasks.map((task) => (
                     <li key={task.id} className="py-2 border-b flex items-center justify-between">
+                      <div>
+                        {task.name} (Assigned to: {task.assignees.join(", ")})
+                        {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                            Deadline: {format(task.deadline, "PPP h:mm a")}
+                          </div>
+                        )}
+                         {task.deadline && (
+                          <div className="text-sm text-muted-foreground">
+                             Time left: {getTimeLeftString(task.deadline)}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        {task.createdBy === userEmail && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
+                              Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+
+                  {completedOtherTasks.map((task) => (
+                    <li key={task.id} className="py-2 border-b flex items-center justify-between opacity-50">
                       <div>
                         {task.name} (Assigned to: {task.assignees.join(", ")})
                         {task.deadline && (
