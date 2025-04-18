@@ -230,7 +230,7 @@ const TaskPage = () => {
         title: "Error",
         description: "Failed to update task.",
         variant: "destructive",
-      });
+        });
     }
 
     setEditingTask(null);
@@ -405,7 +405,7 @@ const TaskPage = () => {
                 </div>
                 <div>
                   <Label htmlFor="household">Household:</Label>
-                  <Select value={selectedHouseholdId || ""}>
+                  <Select onValueChange={(value) => setSelectedHouseholdId(value)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a household" />
                     </SelectTrigger>
@@ -414,7 +414,6 @@ const TaskPage = () => {
                         <SelectItem
                           key={household.id}
                           value={household.id}
-                          onSelect={() => setSelectedHouseholdId(household.id)}
                         >
                           {household.name}
                         </SelectItem>
