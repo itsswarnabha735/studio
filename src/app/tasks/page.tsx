@@ -59,11 +59,7 @@ const TaskPage = () => {
     }
 
     fetchHouseholds();
-
-    const storedTasks = localStorage.getItem("tasks");
-    if (storedTasks) {
-      setTasks(JSON.parse(storedTasks));
-    }
+    fetchTasks();
 
     const storedCompletedTasks = localStorage.getItem("completedTasks");
     if (storedCompletedTasks) {
@@ -89,6 +85,24 @@ const TaskPage = () => {
       toast({
         title: "Error",
         description: "Failed to load households.",
+        variant: "destructive",
+      });
+    }
+  };
+
+   const fetchTasks = async () => {
+    try {
+      const response = await fetch('/api/tasks');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTasks(data);
+    } catch (error) {
+      console.error("Could not fetch tasks:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load tasks.",
         variant: "destructive",
       });
     }
@@ -133,66 +147,125 @@ const TaskPage = () => {
       deadline = setHours(setMinutes(date, time.minute), time.hour);
     }
 
-    const newTask: Task = {
-      id: Math.random().toString(36).substring(7),
-      name: taskName,
-      assignees: selectedAssignees,
-      householdId: selectedHouseholdId,
-      deadline: deadline,
-      createdBy: userEmail || 'unknown',
-    };
-    setTasks([...tasks, newTask]);
-    localStorage.setItem("tasks", JSON.stringify([...tasks, newTask]));
+    try {
+        const response = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: taskName,
+            assignees: selectedAssignees,
+            householdId: selectedHouseholdId,
+            deadline: deadline,
+            createdBy: userEmail || 'unknown',
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const newTask = await response.json();
+        setTasks([...tasks, newTask]);
+        toast({
+          title: "Task Created",
+          description: `Task "${taskName}" created successfully!`,
+        });
+      } catch (error) {
+        console.error("Could not create task:", error);
+        toast({
+          title: "Error",
+          description: "Failed to create task.",
+          variant: "destructive",
+        });
+      }
 
     setTaskName("");
     setSelectedAssignees([]);
     setDate(undefined);
     setTime({ hour: 0, minute: 0 });
-    toast({
-      title: "Task Created",
-      description: `Task "${taskName}" created successfully!`,
-    });
   };
 
   const handleUpdateTask = async () => {
     if (!editingTask) return;
 
-    const updatedTasks = tasks.map(task => {
-      if (task.id === editingTask.id) {
-        return {
-          ...task,
+    try {
+      const response = await fetch(`/api/tasks/${editingTask.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: taskName,
           assignees: selectedAssignees,
           deadline: date ? setHours(setMinutes(date, time.minute), time.hour) : null,
-        };
-      }
-      return task;
-    });
+        }),
+      });
 
-    setTasks(updatedTasks);
-    localStorage.setItem("tasks", JSON.stringify(tasks));
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const updatedTasks = tasks.map(task => {
+        if (task.id === editingTask.id) {
+          return {
+            ...task,
+            name: taskName,
+            assignees: selectedAssignees,
+            deadline: date ? setHours(setMinutes(date, time.minute), time.hour) : null,
+          };
+        }
+        return task;
+      });
+
+      setTasks(updatedTasks);
+      toast({
+        title: "Task Updated",
+        description: `Task "${taskName}" updated successfully!`,
+      });
+    } catch (error) {
+      console.error("Could not update task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update task.",
+        variant: "destructive",
+      });
+    }
 
     setEditingTask(null);
     setTaskName("");
     setSelectedAssignees([]);
     setDate(undefined);
     setTime({ hour: 0, minute: 0 });
-
-    toast({
-      title: "Task Updated",
-      description: `Task "${taskName}" updated successfully!`,
-    });
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
-    setCompletedTasks(completedTasks.filter(ct => ct.taskId !== taskId));
-    localStorage.setItem("tasks", JSON.stringify(tasks));
+  const handleDeleteTask = async (taskId: string) => {
 
-    toast({
-      title: "Task Deleted",
-      description: "Task deleted successfully!",
-    });
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setTasks(tasks.filter(task => task.id !== taskId));
+      setCompletedTasks(completedTasks.filter(ct => ct.taskId !== taskId));
+      toast({
+        title: "Task Deleted",
+        description: "Task deleted successfully!",
+      });
+    } catch (error) {
+      console.error("Could not delete task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete task.",
+        variant: "destructive",
+      });
+    }
+
   };
 
   const toggleAssignee = (member: string) => {
@@ -263,7 +336,7 @@ const TaskPage = () => {
       completionDate: new Date(),
     };
     setCompletedTasks([...completedTasks, newCompletedTask]);
-    localStorage.setItem("completedTasks", JSON.stringify([...completedTasks, newCompletedTask]));
+
     toast({
       title: "Task Completed",
       description: `Task "${task.name}" marked as completed!`,
