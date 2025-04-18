@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface Task {
   id: string;
@@ -22,6 +23,7 @@ interface Household {
 
 const TaskPage = () => {
   const router = useRouter();
+    const { toast } = useToast();
   const [taskName, setTaskName] = useState("");
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -83,6 +85,10 @@ const TaskPage = () => {
       setTasks([...tasks, newTask]);
       setTaskName("");
       setSelectedAssignees([]);
+        toast({
+            title: "Task Created",
+            description: `Task "${taskName}" created successfully!`,
+        });
     }
   };
 
@@ -112,6 +118,10 @@ const TaskPage = () => {
       </div>
     );
   }
+
+    const userTasks = tasks.filter(task => task.householdId === selectedHouseholdId && task.assignees.includes(userName || 'You'));
+    const otherTasks = tasks.filter(task => task.householdId === selectedHouseholdId && !task.assignees.includes(userName || 'You'));
+
 
   return (
     <div className="container mx-auto py-10">
@@ -192,23 +202,53 @@ const TaskPage = () => {
         </CardContent>
       </Card>
 
-      {tasks.length > 0 && selectedHouseholdId && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Current Tasks</CardTitle>
-            <CardDescription>Tasks created</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul>
-              {tasks.filter(task => task.householdId === selectedHouseholdId).map((task) => (
-                <li key={task.id} className="py-2 border-b">
-                  {task.name} (Assigned to: {task.assignees.join(", ")})
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+        {selectedHouseholdId && (
+            <>
+                {userTasks.length > 0 && (
+                    <Card className="mt-6">
+                        <CardHeader>
+                            <CardTitle>Tasks Assigned to You</CardTitle>
+                            <CardDescription>These tasks are assigned to you.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ul>
+                                {userTasks.map((task) => (
+                                    <li key={task.id} className="py-2 border-b">
+                                        {task.name} (Assigned to: {task.assignees.join(", ")})
+                                    </li>
+                                ))}
+                            </ul>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {otherTasks.length > 0 && (
+                    <Card className="mt-6">
+                        <CardHeader>
+                            <CardTitle>Tasks Assigned to Others</CardTitle>
+                            <CardDescription>These tasks are assigned to other household members.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ul>
+                                {otherTasks.map((task) => (
+                                    <li key={task.id} className="py-2 border-b">
+                                        {task.name} (Assigned to: {task.assignees.join(", ")})
+                                    </li>
+                                ))}
+                            </ul>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {userTasks.length === 0 && otherTasks.length === 0 && (
+                    <Card className="mt-6">
+                        <CardContent>
+                            No tasks created for this household yet.
+                        </CardContent>
+                    </Card>
+                )}
+            </>
+        )}
     </div>
   );
 };
