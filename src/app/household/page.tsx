@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,14 +15,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 
 const HouseholdPage = () => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [householdName, setHouseholdName] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [currentHousehold, setCurrentHousehold] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedHouseholdName = localStorage.getItem("householdName");
+    if (storedHouseholdName) {
+      setCurrentHousehold(storedHouseholdName);
+    }
+  }, []);
 
   const handleCreateHousehold = () => {
+    localStorage.setItem("householdName", householdName);
+    setCurrentHousehold(householdName);
     toast({
       title: "Household Created",
       description: `Household "${householdName}" created successfully!`,
@@ -31,9 +42,10 @@ const HouseholdPage = () => {
   };
 
   const handleJoinHousehold = () => {
+    // In a real app, you'd verify the join code with a server
     toast({
       title: "Household Joined",
-      description: `Joined household with code "${joinCode}"!`,
+      description: `Joined household with code "${joinCode}"! (This is a simulation)`,
     });
     setOpen(false);
   };
@@ -47,62 +59,59 @@ const HouseholdPage = () => {
             Manage your household group and shared settings.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="flex items-center space-x-2">
-              <label htmlFor="householdName">Household Name:</label>
-              <Input
-                id="householdName"
-                placeholder="Enter household name"
-                value={householdName}
-                onChange={(e) => setHouseholdName(e.target.value)}
-              />
+        <CardContent className="grid gap-4">
+          {currentHousehold ? (
+            <div>
+              <p>Current Household: {currentHousehold}</p>
+              <Button onClick={() => {
+                localStorage.removeItem("householdName");
+                setCurrentHousehold(null);
+              }}>Leave Household</Button>
             </div>
-            <AlertDialog open={open} onOpenChange={setOpen}>
-              <AlertDialogTrigger asChild>
-                <Button>Create/Join Household</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Create or Join a Household?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Choose to create a new household or join an existing one.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="grid gap-2">
-                  <div>
-                    <label htmlFor="newHouseholdName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">New Household Name:</label>
-                    <Input
-                      type="text"
-                      id="newHouseholdName"
-                      placeholder="Enter new household name"
-                      value={householdName}
-                      onChange={(e) => setHouseholdName(e.target.value)}
-                    />
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleCreateHousehold}>Create</AlertDialogAction>
-                    </AlertDialogFooter>
+          ) : (
+            <>
+              <AlertDialog open={open} onOpenChange={setOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline">Create/Join Household</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Create or Join a Household?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Choose to create a new household or join an existing one.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div>
+                      <Label htmlFor="newHouseholdName">New Household Name:</Label>
+                      <Input
+                        type="text"
+                        id="newHouseholdName"
+                        placeholder="Enter new household name"
+                        value={householdName}
+                        onChange={(e) => setHouseholdName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="joinHouseholdCode">Join Code:</Label>
+                      <Input
+                        type="text"
+                        id="joinHouseholdCode"
+                        placeholder="Enter join code"
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="border-t" />
-                  <div>
-                    <label htmlFor="joinHouseholdCode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Join Code:</label>
-                    <Input
-                      type="text"
-                      id="joinHouseholdCode"
-                      placeholder="Enter join code"
-                      value={joinCode}
-                      onChange={(e) => setJoinCode(e.target.value)}
-                    />
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleJoinHousehold}>Join</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </div>
-                </div>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    {householdName && <AlertDialogAction onClick={handleCreateHousehold}>Create</AlertDialogAction>}
+                    {joinCode && <AlertDialogAction onClick={handleJoinHousehold}>Join</AlertDialogAction>}
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
