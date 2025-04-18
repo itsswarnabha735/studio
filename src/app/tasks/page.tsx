@@ -440,7 +440,7 @@ const TaskPage = () => {
                   }).map((task) => (
                     <li key={task.id} className="py-2 border-b flex items-center justify-between">
                       <div>
-                        {task.name} (Assigned to: {task.assignees.join(", ")})
+                        {task.name} {task.assignees.length > 0 && !task.assignees.includes(userName || 'You') && `(Assigned to: ${task.assignees.join(", ")})`}
                         {task.deadline && (
                           <div className="text-sm text-muted-foreground">
                             Deadline: {format(task.deadline, "PPP h:mm a")}
