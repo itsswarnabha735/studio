@@ -70,14 +70,14 @@ const TaskPage = () => {
     if (storedTasks) {
       setTasks(JSON.parse(storedTasks));
     } else {
-       localStorage.setItem("tasks", JSON.stringify([]));
+       setTasks([]);
     }
 
     const storedCompletedTasks = localStorage.getItem("completedTasks");
     if (storedCompletedTasks) {
       setCompletedTasks(JSON.parse(storedCompletedTasks));
     } else {
-      localStorage.setItem("completedTasks", JSON.stringify([]));
+      setCompletedTasks([]);
     }
   }, []);
 
