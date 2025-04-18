@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -29,36 +30,68 @@ const HouseholdPage = () => {
   const [joinCode, setJoinCode] = useState("");
   const [households, setHouseholds] = useState<Household[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedUserName = localStorage.getItem("userName");
     if (storedUserName) {
       setUserName(storedUserName);
     }
-
-    const storedHouseholds = localStorage.getItem("households");
-    if (storedHouseholds) {
-      setHouseholds(JSON.parse(storedHouseholds));
-    }
+    fetchHouseholds();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("households", JSON.stringify(households));
-  }, [households]);
-
-  const handleCreateHousehold = () => {
-    const newHousehold: Household = {
-      id: Math.random().toString(36).substring(7),
-      name: householdName,
-    };
-    setHouseholds([...households, newHousehold]);
-    toast({
-      title: "Household Created",
-      description: `Household "${householdName}" created successfully!`,
-    });
-    setOpen(false);
-    setHouseholdName("");
+  const fetchHouseholds = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/households'); // Your API endpoint
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setHouseholds(data);
+    } catch (error) {
+      console.error("Could not fetch households:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load households.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleCreateHousehold = async () => {
+    try {
+      const response = await fetch('/api/households', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: householdName }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const newHousehold = await response.json();
+      setHouseholds((prev) => [...prev, newHousehold]);
+      toast({
+        title: "Household Created",
+        description: `Household "${householdName}" created successfully!`,
+      });
+      setOpen(false);
+      setHouseholdName("");
+    } catch (error) {
+      console.error("Could not create household:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create household.",
+        variant: "destructive",
+      });
+    }
+  };
+  
 
   const handleJoinHousehold = () => {
     // In a real app, you'd verify the join code with a server
@@ -112,7 +145,9 @@ const HouseholdPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {households.length > 0 ? (
+          {loading ? (
+            <p>Loading households...</p>
+          ) : households.length > 0 ? (
             <div>
               <p>Your Households:</p>
               <ul>

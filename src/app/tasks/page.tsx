@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -48,6 +49,7 @@ const TaskPage = () => {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState<{ hour: number; minute: number }>({ hour: 0, minute: 0 });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedUserName = localStorage.getItem("userName");
@@ -57,37 +59,53 @@ const TaskPage = () => {
       setUserEmail(storedUserEmail);
     }
 
-    const storedHouseholds = localStorage.getItem("households");
-    if (storedHouseholds) {
-      const parsedHouseholds = JSON.parse(storedHouseholds);
-      setHouseholds(parsedHouseholds);
-      if (parsedHouseholds.length > 0) {
-        setSelectedHouseholdId(parsedHouseholds[0].id);
-      }
-    }
+    fetchHouseholds();
+    fetchTasks();
 
-    const storedTasks = localStorage.getItem("tasks");
-    if (storedTasks) {
-      setTasks(JSON.parse(storedTasks));
-    } else {
-       setTasks([]);
-    }
-
-    const storedCompletedTasks = localStorage.getItem("completedTasks");
-    if (storedCompletedTasks) {
-      setCompletedTasks(JSON.parse(storedCompletedTasks));
-    } else {
-      setCompletedTasks([]);
-    }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
+  const fetchHouseholds = async () => {
+    try {
+      const response = await fetch('/api/households');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setHouseholds(data);
+      if (data.length > 0) {
+        setSelectedHouseholdId(data[0].id);
+      }
+    } catch (error) {
+      console.error("Could not fetch households:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load households.",
+        variant: "destructive",
+      });
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem("completedTasks", JSON.stringify(completedTasks));
-  }, [completedTasks]);
+  const fetchTasks = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/tasks');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTasks(data);
+    } catch (error) {
+      console.error("Could not fetch tasks:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load tasks.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   useEffect(() => {
     if (selectedHouseholdId) {
@@ -97,8 +115,8 @@ const TaskPage = () => {
     }
   }, [selectedHouseholdId, userName]);
 
-  const handleAddTask = () => {
-    if (!selectedHouseholdId) {
+  const handleAddTask = async () => {
+     if (!selectedHouseholdId) {
       toast({
         title: "Error",
         description: "Please select a household.",
@@ -127,15 +145,27 @@ const TaskPage = () => {
       deadline = setHours(setMinutes(date, time.minute), time.hour);
     }
 
-    const newTask: Task = {
-      id: Math.random().toString(36).substring(7),
-      name: taskName,
-      assignees: selectedAssignees,
-      householdId: selectedHouseholdId,
-      deadline: deadline,
-      createdBy: userEmail || 'unknown',
-    };
-    setTasks([...tasks, newTask]);
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: taskName,
+          assignees: selectedAssignees,
+          householdId: selectedHouseholdId,
+          deadline: deadline,
+          createdBy: userEmail || 'unknown',
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const newTask = await response.json();
+      setTasks((prevTasks) => [...prevTasks, newTask]);
+  
     setTaskName("");
     setSelectedAssignees([]);
     setDate(undefined);
@@ -144,44 +174,87 @@ const TaskPage = () => {
       title: "Task Created",
       description: `Task "${taskName}" created successfully!`,
     });
+    } catch (error) {
+      console.error("Could not create task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create task.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleUpdateTask = () => {
+  const handleUpdateTask = async () => {
     if (!editingTask) return;
 
-    const updatedTasks = tasks.map(task => {
-      if (task.id === editingTask.id) {
-        return {
-          ...task,
+    try {
+      const response = await fetch(`/api/tasks/${editingTask.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: taskName,
           assignees: selectedAssignees,
           deadline: date ? setHours(setMinutes(date, time.minute), time.hour) : null,
-        };
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return task;
-    });
-
-    setTasks(updatedTasks);
-    setEditingTask(null);
-    setTaskName("");
-    setSelectedAssignees([]);
-    setDate(undefined);
-    setTime({ hour: 0, minute: 0 });
-
-    toast({
-      title: "Task Updated",
-      description: `Task "${taskName}" updated successfully!`,
-    });
+      const updatedTask = await response.json();
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
+      );
+  
+      setEditingTask(null);
+      setTaskName("");
+      setSelectedAssignees([]);
+      setDate(undefined);
+      setTime({ hour: 0, minute: 0 });
+  
+      toast({
+        title: "Task Updated",
+        description: `Task "${taskName}" updated successfully!`,
+      });
+    } catch (error) {
+      console.error("Could not update task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update task.",
+        variant: "destructive",
+      });
+    }
   };
+  
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
-    setCompletedTasks(completedTasks.filter(ct => ct.taskId !== taskId));
-    toast({
-      title: "Task Deleted",
-      description: "Task deleted successfully!",
-    });
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+      setCompletedTasks(completedTasks.filter(ct => ct.taskId !== taskId));
+  
+      toast({
+        title: "Task Deleted",
+        description: "Task deleted successfully!",
+      });
+    } catch (error) {
+      console.error("Could not delete task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete task.",
+        variant: "destructive",
+      });
+    }
   };
+  
 
   const toggleAssignee = (member: string) => {
     if (selectedAssignees.includes(member)) {
@@ -419,6 +492,10 @@ const TaskPage = () => {
 
       {selectedHouseholdId && (
         <>
+           {loading ? (
+            <p>Loading tasks...</p>
+          ) : (
+            <>
           {userTasks.length > 0 && (
             <Card className="mt-6">
               <CardHeader>
@@ -536,6 +613,8 @@ const TaskPage = () => {
                 No tasks created for this household yet.
               </CardContent>
             </Card>
+          )}
+           </>
           )}
         </>
       )}

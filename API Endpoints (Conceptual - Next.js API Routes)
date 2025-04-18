@@ -1,0 +1,22 @@
+
+// Example: pages/api/households.ts
+
+import { db } from "../../firebaseConfig"; // Adjust path as needed
+import { collection, getDocs, addDoc } from "firebase/firestore";
+
+export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    const householdsCol = collection(db, "households");
+    const householdSnapshot = await getDocs(householdsCol);
+    const householdList = householdSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(householdList);
+  } else if (req.method === 'POST') {
+    try {
+      const docRef = await addDoc(collection(db, "households"), req.body);
+      res.status(201).json({ id: docRef.id, ...req.body });
+    } catch (e) {
+      console.error("Error adding document: ", e);
+      res.status(500).json({ error: "Failed to add household" });
+    }
+  }
+}
