@@ -22,6 +22,12 @@ interface Task {
   createdBy: string;
 }
 
+interface CompletedTask {
+  taskId: string;
+  completedBy: string;
+  completionDate: Date;
+}
+
 interface Household {
   id: string;
   name: string;
@@ -33,6 +39,7 @@ const TaskPage = () => {
   const [taskName, setTaskName] = useState("");
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -63,11 +70,20 @@ const TaskPage = () => {
     if (storedTasks) {
       setTasks(JSON.parse(storedTasks));
     }
+
+    const storedCompletedTasks = localStorage.getItem("completedTasks");
+    if (storedCompletedTasks) {
+      setCompletedTasks(JSON.parse(storedCompletedTasks));
+    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem("tasks", JSON.stringify(tasks));
   }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem("completedTasks", JSON.stringify(completedTasks));
+  }, [completedTasks]);
 
   useEffect(() => {
     if (selectedHouseholdId) {
@@ -156,6 +172,7 @@ const TaskPage = () => {
 
   const handleDeleteTask = (taskId: string) => {
     setTasks(tasks.filter(task => task.id !== taskId));
+    setCompletedTasks(completedTasks.filter(ct => ct.taskId !== taskId));
     toast({
       title: "Task Deleted",
       description: "Task deleted successfully!",
@@ -219,6 +236,22 @@ const TaskPage = () => {
     return `${formattedDuration} left`;
   };
 
+  const isTaskCompleted = (taskId: string): boolean => {
+    return completedTasks.some(task => task.taskId === taskId && task.completedBy === userName);
+  };
+
+  const markTaskCompleted = (task: Task) => {
+    const newCompletedTask: CompletedTask = {
+      taskId: task.id,
+      completedBy: userName,
+      completionDate: new Date(),
+    };
+    setCompletedTasks([...completedTasks, newCompletedTask]);
+    toast({
+      title: "Task Completed",
+      description: `Task "${task.name}" marked as completed!`,
+    });
+  };
 
   if (!userName) {
     return (
@@ -398,7 +431,14 @@ const TaskPage = () => {
                           </div>
                         )}
                       </div>
-                      <div>
+                      <div className="flex gap-2">
+                        {!isTaskCompleted(task.id) ? (
+                          <Button size="sm" onClick={() => markTaskCompleted(task)}>
+                            Mark Complete
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-green-500">Completed</span>
+                        )}
                         {task.createdBy === userEmail && (
                           <>
                             <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
