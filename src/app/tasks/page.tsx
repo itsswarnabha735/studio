@@ -154,6 +154,14 @@ const TaskPage = () => {
     });
   };
 
+  const handleDeleteTask = (taskId: string) => {
+    setTasks(tasks.filter(task => task.id !== taskId));
+    toast({
+      title: "Task Deleted",
+      description: "Task deleted successfully!",
+    });
+  };
+
   const toggleAssignee = (member: string) => {
     if (selectedAssignees.includes(member)) {
       setSelectedAssignees(selectedAssignees.filter((assignee) => assignee !== member));
@@ -371,11 +379,18 @@ const TaskPage = () => {
                           </div>
                         )}
                       </div>
-                      {task.createdBy === userEmail && (
-                        <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
-                          Edit
-                        </Button>
-                      )}
+                      <div>
+                        {task.createdBy === userEmail && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
+                              Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -401,11 +416,18 @@ const TaskPage = () => {
                           </div>
                         )}
                       </div>
-                      {task.createdBy === userEmail && (
-                        <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
-                          Edit
-                        </Button>
-                      )}
+                      <div>
+                        {task.createdBy === userEmail && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(task)}>
+                              Edit
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
