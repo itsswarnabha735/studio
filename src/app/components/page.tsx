@@ -1,13 +1,11 @@
-
-interface Props {
-    children: React.ReactNode;
-}
-const Page = ({ children }: Props) => {
+// Define the actual page content for the /components route
+const ComponentsPage = () => {
     return (
-        
-            {children}
-        
-    )
+        <div>
+            <h1>Components Overview</h1>
+            {/* You can add specific component documentation or examples here */}
+        </div>
+   )
 }
 
-export default Page;
+export default ComponentsPage; // Export the page component
