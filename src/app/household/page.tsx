@@ -16,10 +16,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { Copy } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Household {
   id: string;
   name: string;
+  joinCode: string;
 }
 
 const HouseholdPage = () => {
@@ -60,14 +63,19 @@ const HouseholdPage = () => {
     }
   };
 
+  const generateUniqueCode = () => {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  };
+
   const handleCreateHousehold = async () => {
     try {
+      const uniqueCode = generateUniqueCode();
       const response = await fetch('/api/households', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: householdName }),
+        body: JSON.stringify({ name: householdName, joinCode: uniqueCode }),
       });
   
       if (!response.ok) {
@@ -100,6 +108,7 @@ const HouseholdPage = () => {
     const newHousehold: Household = {
       id: Math.random().toString(36).substring(7),
       name: `Household ${joinCode}`, // Placeholder name
+      joinCode: 'N/A',
     };
     setHouseholds([...households, newHousehold]);
      localStorage.setItem("households", JSON.stringify([...households, newHousehold]));
@@ -117,6 +126,14 @@ const HouseholdPage = () => {
     toast({
       title: "Household Left",
       description: "You have left the household.",
+    });
+  };
+
+  const copyJoinCode = (code: string, householdName: string) => {
+    navigator.clipboard.writeText(code);
+    toast({
+      title: "Join Code Copied",
+      description: `Join code for "${householdName}" copied to clipboard!`,
     });
   };
 
@@ -156,16 +173,28 @@ const HouseholdPage = () => {
               <p>Your Households:</p>
               <ul>
                 {households.map((household) => (
-                  <li key={household.id} className="py-2">
-                    {household.name}
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="ml-2"
-                      onClick={() => handleLeaveHousehold(household.id)}
-                    >
-                      Leave
-                    </Button>
+                  <li key={household.id} className="py-2 flex items-center justify-between">
+                    <div>
+                      {household.name}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                       <Label className="mr-2">Code: {household.joinCode}</Label>
+                       <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => copyJoinCode(household.joinCode, household.name)}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                           Copy Code
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleLeaveHousehold(household.id)}
+                        >
+                          Leave
+                        </Button>
+                    </div>
                   </li>
                 ))}
               </ul>

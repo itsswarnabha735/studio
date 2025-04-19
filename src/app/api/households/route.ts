@@ -3,11 +3,12 @@ import { NextResponse } from 'next/server';
 interface Household {
   id: string;
   name: string;
+  joinCode: string;
 }
 
 // In-memory store for households (for demonstration purposes)
 let households: Household[] = [
-  { id: '1', name: 'Initial Household' }, // Add an initial household
+  { id: '1', name: 'Initial Household', joinCode: 'ABCDEFGH' }, // Add an initial household
 ];
 
 export async function GET(request: Request) {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { name } = await request.json();
+    const { name, joinCode } = await request.json();
 
     if (!name) {
       return new NextResponse(JSON.stringify({ message: 'Household name is required' }), {
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
     const newHousehold: Household = {
       id: Math.random().toString(36).substring(7),
       name: name,
+      joinCode: joinCode,
     };
 
     households.push(newHousehold);
